@@ -1,0 +1,191 @@
+﻿
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>Product App</title>
+</head>
+<body onload="onload()">
+    <div>
+        <input type="text" id="username" size="5" value="username" onfocus="clearThis(this);" />
+        <input type="text" id="password" size="5" value="password" onfocus="clearThis(this);" />
+        <input type="button" id="loginButton" value="Login" onclick="getToken();" />
+        <p id="token" />
+    </div>
+    <div>
+        <input type="button" id="getWebStorageTokenButton" value="Get Local" onclick="getLocalToken();" />
+        <p id="localToken" />
+        <br>
+    </div>
+    <div>
+        <h2>All Products</h2>
+        <input type="button" id="reloadButton" value="Reload" onclick="getAllProducts();" />
+        <ul id="products" />
+    </div>
+    <div>
+        <h2>Search by ID</h2>
+        <input type="text" id="prodId" size="5" />
+        <input type="button" id="myButton" value="Search" onclick="noJQueryFind();" />
+        <p id="product" />
+    </div>
+    <div>
+        <h2>Send Product Info</h2>
+        Name:<br>
+        <input type="text" id="newName" size="5" /><br>
+        Category:<br>
+        <input type="text" id="newCategory" size="5" /><br>
+        Price:<br>
+        <input type="text" id="newPrice" size="5" /><br>
+        <input type="button" id="sendButton" value="Send" onclick="sendNewProduct();" />
+        <p id="sendResult" />
+    </div>
+    <div>
+        <h2>Delete Product</h2>
+        <input type="text" id="deleteName" size="5" />
+        <input type="button" id="deleteButton" value="Delete" onclick="deleteProduct();" />
+        <p id="deleteResult" />
+    </div>
+    <div>
+        <p id="debugText" />
+    </div>
+
+    <script src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-2.0.3.min.js"></script>
+    <script>
+    var uri = 'api/products';
+
+    $(document).ready(function () {
+      // Send an AJAX request
+      /*$.getJSON(uri)
+          .done(function (data) {
+            // On success, 'data' contains a list of products.
+            $.each(data, function (key, item) {
+              // Add a list item for the product.
+              $('<li>', { text: formatItem(item) }).appendTo($('#products'));
+            });
+          });
+          */
+        getAllProducts();
+    });
+
+    function onload() {
+        document.getElementById("prodId")
+        .addEventListener("keyup", function (event) {
+            event.preventDefault();
+            if (event.keyCode == 13) {
+                document.getElementById("myButton").click();
+            }
+        });
+    }
+
+    function formatItem(item) {
+      return item.Name + ': $' + item.Price;
+    }
+
+    function getAllProducts() {
+        document.getElementById("products").innerHTML = ""; // clear previous text
+        // Send an AJAX request
+        $.getJSON(uri)
+            .done(function (data) {
+                // On success, 'data' contains a list of products.
+                $.each(data, function (key, item) {
+                    // Add a list item for the product.
+                    $('<li>', { text: formatItem(item) }).appendTo($('#products'));                    
+                });
+            });
+    }
+
+    function find() {
+      var id = $('#prodId').val();
+      $.getJSON(uri + '/' + id)
+          .done(function (data) {
+            $('#product').text(formatItem(data));
+          })
+          .fail(function (jqXHR, textStatus, err) {
+            $('#product').text('Error: ' + err);
+          });
+    };
+
+    function noJQueryFind() {
+        var id = document.getElementById("prodId").value;
+        var xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function () {
+            if (this.readyState == 4 && this.status == 200) {
+                var formattedText = formatItem(JSON.parse(this.responseText));
+                document.getElementById("product").innerHTML = formattedText;
+            }
+            else {
+                document.getElementById("product").innerHTML = this.statusText;
+            }
+        };
+        //xhttp.open("GET", uri + '/' + id, true);
+        xhttp.open("GET", uri + '/?id=' + id + '&token=' + sessionStorage.getItem("latestToken"), true);
+        //xhttp.setRequestHeader("Accept", "text/xml"); 
+        xhttp.send();
+    }
+
+    function sendNewProduct() {
+        var name = document.getElementById("newName").value;
+        var category = document.getElementById("newCategory").value;
+        var price = document.getElementById("newPrice").value;
+        var xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function () {
+            if (this.readyState == 4 && this.status == 200) {
+                //var formattedText = formatItem(JSON.parse(this.responseText));
+                document.getElementById("sendResult").innerHTML = this.responseText;
+            }
+            else {
+                document.getElementById("sendResult").innerHTML = this.statusText;
+            }
+        };
+        xhttp.open("POST", uri + '/?token=' + sessionStorage.getItem("latestToken"), true);
+        xhttp.setRequestHeader('Content-Type', 'application/json');
+        var newProduct = { name: name, category: category, price: price };
+        xhttp.send(JSON.stringify(newProduct));
+    }
+        
+    function deleteProduct() {
+        var deleteName = document.getElementById("deleteName").value;
+        var xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function () {
+            if (this.readyState == 4 && this.status == 200) {
+                //var formattedText = formatItem(JSON.parse(this.responseText));
+                document.getElementById("deleteResult").innerHTML = this.responseText;
+            }
+            else {
+                document.getElementById("deleteResult").innerHTML = this.statusText;
+            }
+        };
+        xhttp.open("DELETE", uri + '/?productName=' + deleteName + '&token=' + sessionStorage.getItem("latestToken"), true);
+        xhttp.setRequestHeader('Content-Type', 'application/json');
+        xhttp.send();
+    }
+
+    function getToken() {
+        var uname = document.getElementById("username").value;
+        var pwd = document.getElementById("password").value;
+        var xhttp = new XMLHttpRequest();
+        xhttp.onreadystatechange = function () {
+            if (this.readyState == 4 && this.status == 200) {
+                var token = JSON.parse(this.responseText).Value;
+                document.getElementById("token").innerHTML = token;
+                // Store token in session storage
+                sessionStorage.setItem("latestToken", token);
+            }
+            else {
+                document.getElementById("token").innerHTML = this.statusText;
+            }
+        };
+        xhttp.open("GET", 'api/token' + '/?username=' + uname + '&password=' + pwd, true);
+        //xhttp.setRequestHeader("Accept", "text/xml");
+        xhttp.send();
+    }
+
+    function getLocalToken() {
+        document.getElementById("localToken").innerHTML = sessionStorage.latestToken;
+    }
+
+    function clearThis(target) {
+        target.value = "";
+    }
+    </script>
+</body>
+</html>
