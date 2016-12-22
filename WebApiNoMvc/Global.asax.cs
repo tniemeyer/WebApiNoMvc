@@ -12,6 +12,8 @@ namespace WebApiNoMvc
         protected void Application_Start()
         {
             GlobalConfiguration.Configure(WebApiConfig.Register);
+
+            ProductStreamer.Start();
         }
     }
 }

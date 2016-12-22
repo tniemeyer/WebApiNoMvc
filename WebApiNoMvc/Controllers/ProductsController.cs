@@ -12,20 +12,15 @@ namespace WebApiNoMvc.Controllers
 {
     public class ProductsController : ApiController
     {
-        //Product[] products = new Product[]
-        //List<Product> products = new List<Product>
-        //{
-        //    new Product { Id = 1, Name = "Tomato Soup", Category = "Groceries", Price = 1 },
-        //    new Product { Id = 2, Name = "Yo-yo", Category = "Toys", Price = 3.75M },
-        //    new Product { Id = 3, Name = "Hammer", Category = "Hardware", Price = 16.99M }
-        //};
-
         public IEnumerable<Product> GetAllProducts()
         {
             var list = new List<Product>();
-            foreach (var kvp in DataContainer.Products)
+            lock (typeof(DataContainer))
             {
-                list.Add(kvp.Value);
+                foreach (var kvp in DataContainer.Products)
+                {
+                    list.Add(kvp.Value);
+                }
             }
 
             return list;
@@ -39,12 +34,18 @@ namespace WebApiNoMvc.Controllers
             }
 
             Product product;
-            var wasProductFound = DataContainer.Products.TryGetValue(id, out product);
+            bool wasProductFound = false;
+
+            lock (typeof(DataContainer))
+            {
+                wasProductFound = DataContainer.Products.TryGetValue(id, out product);
+            }
             if (!wasProductFound)
             {
                 return NotFound();
                 //return this.StatusCode(HttpStatusCode.Forbidden);
             }
+
             return Ok(product);
         }
 
@@ -55,11 +56,21 @@ namespace WebApiNoMvc.Controllers
                 return Unauthorized();
             }
 
-            if (!DataContainer.Products.ContainsKey(newProduct.Id))
+            bool didAlreadyExist = true;
+            int newProductCount = 0;
+            lock (typeof(DataContainer))
             {
-                newProduct.Id = DataContainer.Products.Count + 1;
-                DataContainer.Products.Add(newProduct.Id, newProduct);
-                return Ok(DataContainer.Products.Count);
+                if (!DataContainer.Products.ContainsKey(newProduct.Id))
+                {
+                    didAlreadyExist = false;
+                    newProduct.Id = DataContainer.Products.Count + 1;
+                    DataContainer.Products.Add(newProduct.Id, newProduct);
+                    newProductCount = DataContainer.Products.Count;
+                }
+            }
+            if(!didAlreadyExist)
+            {
+                return Ok(newProductCount);
             }
             else
             {
@@ -76,18 +87,31 @@ namespace WebApiNoMvc.Controllers
             }
 
             int IdToDelete;
-            var list = new List<Product>();
-            foreach (var kvp in DataContainer.Products)
-            {
-                if(kvp.Value.Name == productName)
+            int newProductCount = 0;
+            bool wasProductFound = false;
+            //var list = new List<Product>();
+            lock (typeof(DataContainer))
+            { 
+                foreach (var kvp in DataContainer.Products)
                 {
-                    IdToDelete = kvp.Value.Id;
-                    DataContainer.Products.Remove(IdToDelete);
-
-                    return Ok(DataContainer.Products.Count);
+                    if (kvp.Value.Name == productName)
+                    {
+                        wasProductFound = true;
+                        IdToDelete = kvp.Value.Id;
+                        DataContainer.Products.Remove(IdToDelete);
+                        newProductCount = DataContainer.Products.Count;
+                        break;
+                    }
                 }
             }
-            return NotFound();
+            if (wasProductFound)
+            {
+                return Ok(newProductCount);
+            }
+            else
+            {
+                return NotFound();
+            }
         }
 
         private bool ValidateToken(string token)
