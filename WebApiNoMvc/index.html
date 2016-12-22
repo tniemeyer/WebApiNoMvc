@@ -172,6 +172,7 @@
             }
             else {
                 document.getElementById("token").innerHTML = this.statusText;
+                sessionStorage.removeItem("latestToken");
             }
         };
         xhttp.open("GET", 'api/token' + '/?username=' + uname + '&password=' + pwd, true);

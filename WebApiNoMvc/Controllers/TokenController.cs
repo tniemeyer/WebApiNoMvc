@@ -13,7 +13,9 @@ namespace WebApiNoMvc.Controllers
         Dictionary<string, string> credentials = new Dictionary<string, string>
         {
             { "Todd", "toddspwd" },
-            { "Finley", "finspwd" }
+            { "Finley", "finspwd" },
+            { "Lauryn", "laurynspwd" },
+            { "Cameron", "camspwd" }
         };
         
         // GET: api/Token/5
