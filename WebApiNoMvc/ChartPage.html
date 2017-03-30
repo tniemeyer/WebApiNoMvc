@@ -25,7 +25,7 @@
     <div>
         <input type="text" id="origin" size="5" value="origin" onfocus="clearThis(this);" />
         <input type="text" id="destination" size="5" value="destination" onfocus="clearThis(this);" />
-        <input type="button" id="getDistanceButton" value="Get Distance" onclick="queryDistanceApi();" />
+        <input type="button" id="getDistanceButton" value="Get Distance" onclick="queryDistanceApiViaClient();" />
         <p id="distanceResult" />
     </div>
 
@@ -174,10 +174,35 @@
         });
     }
         
+    function queryDistanceApiViaClient() {
+        var origin = document.getElementById("origin").value;
+        var destination = document.getElementById("destination").value;
+        var service = new google.maps.DistanceMatrixService();
+        service.getDistanceMatrix(
+          {
+              origins: [origin],
+              destinations: [destination],
+              travelMode: 'DRIVING',
+              //transitOptions: TransitOptions,
+              //drivingOptions: DrivingOptions,
+              unitSystem: google.maps.UnitSystem.IMPERIAL,
+              //avoidHighways: Boolean,
+              //avoidTolls: Boolean,
+          }, distanceCallback);
+    }
+        
+    function distanceCallback(response, status) {
+        // See Parsing the Results for
+        // the basics of a callback function.
+        var distance = response.rows[0].elements[0].distance.text;
+        var duration = response.rows[0].elements[0].duration.text;
+        document.getElementById("distanceResult").innerHTML = distance + " (" + duration + ")";
+    }
+        
     function queryDistanceApi() {
         var origin = document.getElementById("origin").value;
         var destination = document.getElementById("destination").value;
-        var xhttp = new XMLHttpRequest();
+        /*var xhttp = new XMLHttpRequest();
         xhttp.onreadystatechange = function () {
             if (this.readyState == 4 && this.status == 200) {
                 var formattedText = formatItem(JSON.parse(this.responseText));
@@ -186,12 +211,48 @@
             else {
                 document.getElementById("distanceResult").innerHTML = this.status;
             }
-        };
+        };*/
 
         var uriBase = 'https://maps.googleapis.com/maps/api/distancematrix/json?units=imperial';
         var uri = uriBase + '&origins=' + origin + '&destinations=' + destination + '&key=AIzaSyCAQF0GSriiGFFrIEesKPFkyAkq10VbHzE';
-        xhttp.open("GET", uri, true);
-        xhttp.send();
+        
+        //xhttp.open("GET", uri, true);
+        //xhttp.send();
+
+        var xhr = createCORSRequest('GET', uri);
+        if (!xhr) {
+            alert('CORS not supported');
+            return;
+        }
+
+        // Response handlers.
+        xhr.onload = function () {
+            document.getElementById("distanceResult").innerHTML = xhr.responseText;
+            alert('Response from CORS request to ' + uri + ': ' + title);
+        };
+
+        xhr.onerror = function () {
+            alert('Woops, there was an error making the request.');
+        };
+
+        xhr.send();
+    }
+
+    // Create the XHR object.
+    function createCORSRequest(method, url) {
+        var xhr = new XMLHttpRequest();
+        if ("withCredentials" in xhr) {
+            // XHR for Chrome/Firefox/Opera/Safari.
+            xhr.open(method, url, true);
+        } else if (typeof XDomainRequest != "undefined") {
+            // XDomainRequest for IE.
+            xhr = new XDomainRequest();
+            xhr.open(method, url);
+        } else {
+            // CORS not supported.
+            xhr = null;
+        }
+        return xhr;
     }
         
     function clearThis(target) {
